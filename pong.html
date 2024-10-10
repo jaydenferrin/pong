@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="utf-8" />
+    <title>PONG</title>
+    <style>
+    	* { padding: 0; margin: 0; }
+        body, html {height:100%;}
+    	#myCanvas { position:absolute; height:100%; width:100%; display:block; background-color:black}
+    </style>
+</head>
+<body>
+
+<canvas id="myCanvas" width=100% height=100%></canvas>
+
+<script>
+class Vec2d{
+  constructor(x,y) {
+    this.x = x;
+    this.y = y;
+  }
+
+  getSign() {
+    return leftOrRight(this.x * this.y);
+  }
+}
+var canvas = document.getElementById("myCanvas");
+var ctx = canvas.getContext("2d");
+
+function getRand(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+function getRandomInt(min, max) {
+  min = Math.ceil(min);
+  max = Math.floor(max);
+  return Math.floor(Math.random() * (max - min) + min); //The maximum is exclusive and the minimum is inclusive
+}
+
+function polarConv(r,theta) {
+  return new Vec2d(r * Math.cos(theta),r * Math.sin(theta));
+}
+
+const R = 7;
+//const R = 50;
+var r = R;
+var dSpeed = 2;
+var slope = polarConv(r,(getRand(Math.PI/4,Math.PI*3/4)+Math.PI/2*leftOrRight(getRandomInt(0,2),1)));
+var x = window.innerWidth/2, y = window.innerHeight/2;
+const rectW = 20, rectH = 190;
+const pSpeed = 7;
+let pDist = 20
+const xL = pDist; var xR = window.innerWidth-rectW - pDist;
+const ballR = 20;
+var yL = window.innerHeight/2-rectH/2, yR = window.innerHeight/2-rectH/2;
+var dL = 0, dR = 0;
+var score = {right:0,left:0};
+var lastScore = 0;
+var now = Date.now();
+var com = true;
+var mouseX = 0, mouseY = 0;
+var mouse = true;
+const startDelay = 700;
+var winner;
+var comd = 0;
+var lastP = -1500;
+var intendedDest = -500;
+var x1 = -500;
+var join = true;
+var startTime;
+var testTime;
+var pauseTime;
+//var moveTime;
+var frameTime;
+var ti;
+var tiTrue;
+
+//var inplay = false;
+var frame = 0;
+
+var points = [];
+
+var nextdy = null;
+var lastcomd = 0;
+const minTime = 700;
+
+function leftOrRight(n, compare) {
+  return (n<compare) ? -1 : 1;
+}
+
+function leftOrRightS(n, compare) {
+  return (n == compare) ? 0 : leftOrRight(n, compare);
+}
+
+function sign(n) {
+  return (n == 0) ? 0 : (n > 0) ? 1 : -1;
+}
+
+function restartBoard() {
+  lastScore = 0;
+  help();
+  slope = polarConv(r,(getRand(Math.PI/4,Math.PI*3/4)+Math.PI/2*leftOrRight(getRandomInt(0,2),1)));
+}
+
+function restart1() {
+  score.left = 0;
+  score.right = 0;
+  winner = null;
+}
+
+function unpause() {
+  winner = null;
+  startTime += pauseTime;
+}
+
+function pause() {
+  winner = 'pause';
+}
+
+function help() {
+  r = R;
+  x = window.innerWidth/2;
+  y = window.innerHeight/2;
+  dL = 0;
+  dR = 0;
+  //yL = window.innerHeight/2-rectH/2;
+  //yR = window.innerHeight/2-rectH/2;
+  slope = polarConv(r,(getRand(Math.PI/4,Math.PI*3/4)+ Math.PI/2*lastScore));
+  now = Date.now();
+  startTime = now;
+  comd = 0;
+  //yL = points[1];
+  nextdy = null;
+  lastdy = 0;
+}
+
+function draw() {
+  frameTime = Date.now();
+
+  ctx.canvas.width = window.innerWidth;
+  ctx.canvas.height = window.innerHeight;
+
+  xR = window.innerWidth-rectW - pDist
+
+  //points.unshift(yL);
+  //renderPoints(xL+rectW, points);
+
+  ctx.fillStyle = 'white';
+  ctx.font = '100px sanserif';
+  ctx.fillText(score.left, window.innerWidth/2-100,100);
+  ctx.fillText(score.right, window.innerWidth/2+100,100);
+  if (winner != null && (winner === 'Right' || winner === 'Left')) ctx.fillText(winner + ' Won!', window.innerWidth/2 +
+    ((winner === 'Right') ? 50 : -500), canvas.height/2-50);
+  
+  ctx.beginPath();
+  ctx.arc(x, y, ballR, 0, 2 * Math.PI, false);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.beginPath();
+  ctx.rect(xL, yL, rectW, rectH);
+  ctx.fillStyle = 'white';
+  ctx.fill();
+  ctx.closePath();
+
+  ctx.beginPath();
+  ctx.rect(xR, yR, rectW,rectH);
+  ctx.fillStyle = 'white';
+  ctx.fill();
+  ctx.closePath();
+  
+  if (Date.now() - now >= startDelay && winner == null) {
+    //x += slope.x;
+    //y += slope.y;
+    //if (point(x-ballR,ballR*2)) help();
+    /*
+    else if (y + ballR >= yR && y - ballR <= yR + rectH &&
+      y + ballR >= yL && y - ballR <= yL + rectH &&
+      //collision(x-ballR-rectW, y-ballR, ballR*2+rectW*2, ballR*2)) {
+      //rectIntersect(x-ballR, y-ballR, ballR*2, ballR*2, canvas.width - rectW, yR, rectW, rectH)) {
+      slope = collisionS(y - ballR, ballR * 2, yR, rectH);
+    }
+    else if (y + ballR >= yR && y - ballR <= yR + rectH) collision(x-ballR,y-ballR,ballR*2+rectW,ballR*2,slope);
+    else if (y + ballR >= yL && y - ballR <= yL + rectH) collision(x-ballR-rectW,y-ballR,ballR*2 + rectW,ballR*2,slope);
+    //*/
+
+    if (rectIntersect(x-ballR, y-ballR, ballR*2, ballR*2, xR, yR, rectW, rectH)) {
+      //console.log(true);
+      //x = canvas.width - ballR*2 - rectW;
+      r += dSpeed;
+      slope = collisionS(x-ballR, y-ballR, ballR * 2, yR, rectH);
+      startTime = Date.now()
+    } else if (rectIntersect(x-ballR, y-ballR, ballR*2, ballR*2, xL, yL, rectW, rectH)) {
+      //console.log(true);
+      //x = ballR*2 + rectW;
+      r += dSpeed;
+      slope = collisionS(x-ballR, y-ballR, ballR * 2, yL, rectH);
+      startTime = Date.now();
+      //console.log("time: " + (Date.now() - testTime));
+
+      console.log(`predicted: ${ti} true: ${Date.now()-tiTrue}`);
+
+    } else if (collisionY(x-ballR, y-ballR, ballR*2, ballR*2)) {
+      y = ((y < canvas.height/2) ? ballR : canvas.height - ballR) - slope.y;
+      slope.y = -slope.y;
+    }
+    else if (point(x-ballR,ballR*2)) help();
+    //rectIntersect(x-ballR, y-ballR, ballR*2, ballR*2, canvas.width/2+500, yR, 20, 150);//*/
+
+    //rectIntersect(x-ballR, y-ballR, ballR*2, ballR*2, 20, yL, 20, 150);
+
+    //predict(x,y,slope);
+
+   let deltaTime = (Date.now() - frameTime)/10;
+
+    x += slope.x;
+    y += slope.y;
+    //x = mouseX;
+    //y = mouseY;
+    //x += slope.x * deltaTime;
+    //y += slope.y * deltaTime;
+  
+  //console.log(min(canvas.height - (yR + rectH), -1 * (0 - yR)));
+
+  // **computer controls**
+
+  if (com && Date.now() - now >= startDelay) {// && x < canvas.width/2) {
+
+    var p = predict(x, y, slope);
+    if (slope.x > 0) p.pos = canvas.height/2;
+
+    var yS = (p.pos < yL + rectH/2) ? yL + rectH/2-30 : yL + rectH/2 + 30;
+    if (yS < rectH/2-30) yS = rectH/2-30;
+    if (yS > canvas.height-rectH/2+30) yS = canvas.height-rectH/2+30;
+    //if (slope.x > 0) yS = yL + rectH/2
+
+    if (1){//slope.x < 0) {
+      //lastP = p;
+
+      if (Math.abs(intendedDest-p.pos)>30 && Date.now() - now >= startDelay) {
+        startTime = Date.now();
+        //x1 = (p+yS)/2;
+        x1 = yS;
+        intendedDest = p.pos;
+        //join = false;
+
+        ti = (10*p.dist)/r;
+        tiTrue = Date.now()
+        //if (ti < minTime) {
+          //minTime = ti;
+          //console.log(minTime);
+        //}
+      }
+/*
+      ctx.beginPath();
+      ctx.fillStyle = 'red';
+      ctx.fillRect(rectW+xL,intendedDest,5,5);
+      ctx.fill();
+      ctx.fillStyle = 'blue';
+      ctx.fillRect(rectW+xL,x1,5,5);
+      ctx.fill();
+      ctx.fillStyle = 'green';
+      ctx.fillRect(rectW+xL,p.pos,5,5);
+      ctx.fill();
+//*/
+
+      //console.log(`x1: ${x1} intent: ${intendedDest} p: ${p}`);
+
+      //let comd = (leftOrRight(p,yL) + leftOrRight(p, yL + rectH))/2 * pSpeed;
+      /*if (nextdy == null) {
+        comd += accel(intendedDest, 1000, yS, x1);
+        nextdy = 0;
+      } else comd = nextdy;//*/
+
+      let a = accel(intendedDest, (ti > minTime) ? ti : minTime, yS, x1);
+      //let comd = move(intendedDest, Date.now() - startTime, ti*2, x1) - yS;
+      lastcomd = comd;
+      comd += a;
+
+      //if (Math.abs(Math.abs(comd) - Math.abs(yS - x1)) == 0 && comd > 0) throw 'help';
+
+      if (winner === 'pause') startTime += Date.now()-pauseTime;
+
+      if (//Math.abs(leftOrRight(intendedDest, yL) + leftOrRight(intendedDest, yL + rectH))/2 &&
+      !(sign(lastcomd) != sign(comd) && Math.abs(yS - intendedDest) < Math.abs(yS - x1))) {
+      //Math.abs(yS-intendedDest) > 10) {
+        if (0){//yL+comd+rectH >= canvas.height || yL+comd <= 0) {
+          let mine = Math.min(canvas.height - (yL + rectH), -1*(0 - yL));
+          yL += leftOrRight(yL,canvas.height/2) * mine;
+        } else {
+          yL += comd;
+          //nextdy = comd + accel(intendedDest, 1000, yS, x1);
+          //comd = 0;
+        }
+      } else {
+        //comd = leftOrRightS(intendedDest, yL + rectH/2);
+        //comd -= leftOrRightS(comd,0);
+        //yL += comd;
+        comd = 0;
+        //nextdy = null;
+        //console.log("time to move: " + (Date.now() - tiTrue));
+        startTime = Date.now();
+        if (testTime == null) testTime = Date.now();
+      }
+    } else {
+      join = true;
+      testTime = null;
+    }
+  } else {
+    // left user controls
+    if (yL+dL+rectH >= canvas.height || yL+dL <= 0) {
+      let mine = Math.min(canvas.height - (yL + rectH), -1*(0 - yL));
+      yL += leftOrRight(yL,canvas.height/2) * mine;
+      comd = 0;
+    } else yL += dL;
+}
+}
+
+  // right paddle controls
+  if (winner == null) {
+  if (mouse && mouseY) {
+    yR = mouseY-rectH/2;
+  } else {
+    if (yR+dR+rectH >= canvas.height || yR+dR <= 0) {
+      let mine = Math.min(canvas.height - (yR + rectH), -1*(0 - yR));
+      yR += leftOrRight(yR,canvas.height/2) * mine;
+    } else yR += dR;
+  }
+  }
+  
+  //frame++;
+}
+
+function rectIntersect(x, y, w, h, x1, y1, w1, h1) {
+  //ctx.beginPath();
+  //ctx.strokeStyle = 'red';
+  //ctx.strokeWidth = 3;
+  //ctx.strokeRect(x,y,w,h);
+  //ctx.beginPath();
+  //ctx.strokeRect(x1,y1,w1,h1);
+
+  let ret = (x <= x1 + w1 && x + w >= x1 && y + h >= y1 && y <= y1 + h1);
+  //if (ret) {
+    //ctx.beginPath();
+    //ctx.fillStyle = 'red';
+    //ctx.fillRect(x,y,w,h);
+    //ctx.beginPath();
+    //ctx.fillRect(x1,y1,w1,h1);
+  //}
+  return ret;
+}
+
+function point(x,w) {
+  if (x+w <= 0) {
+    score.right++;
+    lastScore = -1;
+    if (score.right == 10) {
+      winner = 'Right';
+      restartBoard();
+    }
+    return true;
+  } else if (x >= window.innerWidth) {
+    score.left++;
+    lastScore = 1;
+    if (score.left == 10) {
+      winner = 'Left';
+      restartBoard();
+    }
+    return true;
+  }
+  return false;
+}
+
+function collision(x, y, w, h, slope) {
+  //var collided = false;
+  if (x <= 0 || x + w >= window.innerWidth) {
+    slope.x = -slope.x;
+  }
+  if (y <= 0 || y + h >= window.innerHeight) {
+    slope.y = -slope.y;
+  }
+}
+
+function collision(x, y, w, h) {
+  return ((x <= 0 || x + w >= window.innerWidth) || (y <= 0 || y + h >= window.innerHeight));
+}
+
+function collisionX(x, y, w, h) {
+  return (x <= 0 || x + w >= window.innerWidth);
+}
+
+function collisionY(x, y, w, h) {
+  return (y <= 0 || y + h >= window.innerHeight);
+}
+
+function collisionS(x, y, h, y1, h1) {
+  //let r = pythag(slope.x,slope.y);
+  let side = leftOrRight(x,window.innerWidth/2);
+  let theta = -side * (
+    (Math.PI/4) * (
+      (
+        (2 * 
+          (y - y1 + h)
+        ) / h1
+      ) + 1
+    ) + (side * Math.PI/2));
+  //let theta = (leftOrRight(x, window.innerWidth/2)+1)/2*Math.PI;
+  console.log(x + ", " + ", " + y + ", " + h + ", " + y1 + ", " + h1 + ", " + theta);
+  return polarConv(r, theta);
+}
+
+function predict(x, y, slope) {
+  //var yS = slope.y;
+  var slope1 = new Vec2d(slope.x, slope.y);
+  var y0 = (slope1.y < 0) ? ballR : window.innerHeight - ballR;
+  var x0 = (((y0-y)*slope1.x)/slope1.y) + x;
+
+  let x1 = (slope1.x < 0) ? xL + rectW : xR;
+  let y1 = (((x1-x)*slope1.y)/slope1.x) + y;
+  let dist = pythag(x1-x,y1-y);
+
+  //ctx.beginPath();
+  //ctx.strokeStyle = 'red';
+  //ctx.strokeWidth = 2;
+  var i = 0;
+  //var x1 = 0, y1 = 0;
+  do {
+    //ctx.moveTo(x,y);
+    //ctx.lineTo(x0,y0);
+    //x1 = x;
+    //y1 = y;
+    x = x0;
+    y = y0;
+    slope1.y = -slope1.y;
+    y0 = (slope1.y < 0) ? ballR : window.innerHeight-ballR;
+    x0 = (((y0-y)*slope1.x)/slope1.y) + x;
+    i++;
+  } while ((x < window.innerWidth && x > 0) && i <= 100);
+  //ctx.stroke();
+  return {pos: ((((((x < window.innerWidth/2) ? rectW+xL : window.innerWidth-rectW)-x)*(-slope1.y))/slope1.x) + y),
+              dist: dist};
+}
+
+function accel(amp, a, y, y0) {
+  //let y1 = (amp + y0)/2;
+  //return leftOrRight(y1,y) * a; 
+
+  let y1 = (amp + y0)/2;
+  return leftOrRight(y1,y) * Math.abs(y1-y0)/(1.11e-3* Math.pow(a, 2.02)); 
+}
+
+function move(amp, timeDif, p, y0) {
+  let a = (amp-y0)/2;
+  return -a * Math.cos((Math.PI * timeDif)/(p*2)) + a + y0;
+}
+
+function renderPoints(x, points) {
+  if (points.length < 1) return;
+  ctx.beginPath();
+  ctx.strokeLength = 3;
+  ctx.strokeStyle = 'pink';
+  ctx.moveTo(x, points[0]);
+  for (let i = 1; i < points.length; i++) {
+    if (x+i < window.innerWidth-5) {
+      ctx.lineTo(x+i, points[i]);
+    } else {
+      points.pop();
+    }
+  }
+  ctx.stroke();
+}
+
+function pythag(x, y) {
+  return Math.sqrt(x*x+y*y);
+}
+
+document.addEventListener('keydown', (event) => {
+  var code = event.code;
+  //if (!mouse) {
+  switch (code) {
+    case 'ArrowUp':
+      dR = -pSpeed;
+      break;
+    case 'ArrowDown':
+      dR = pSpeed;
+      break;
+    case 'KeyW':
+      dL = -pSpeed;
+      break;
+    case 'KeyS':
+      dL = pSpeed;
+      break;
+  //}
+  }
+}, false);
+
+document.addEventListener('keyup', (event) => {
+  var code = event.code;
+  switch (code) {
+    case 'ArrowUp':
+    case 'ArrowDown':
+      dR = 0;
+      break;
+    case 'KeyW':
+    case 'KeyS':
+      dL = 0;
+      break;
+  }
+}, false);
+
+document.addEventListener('keypress', (event) => {
+  var code = event.code;
+console.log(code);
+  if (code === 'KeyC') com = !com;
+  else if (code === 'KeyM') mouse = !mouse;
+  else if (code === 'Space') {
+    if (winner === 'pause') {
+      unpause();
+    } else if (winner === 'Right' || winner === 'Left') {
+      restart1();
+      restartBoard();
+    } else {
+      pause();
+      pauseTime = Date.now();
+    }
+    /*if (winner != null && winner !== 'nobody') {
+      restart1();
+    } else if (winner === 'nobody') {
+      unpause();
+    } else {
+      restartBoard();
+      winner = 'nobody';
+    }//*/
+  } else if (code === 'KeyR') {
+      restart1();
+      restartBoard();
+  }
+}, false);
+
+(function() {
+    document.onmousemove = handleMouseMove;
+    function handleMouseMove(event) {
+        var eventDoc, doc, body;
+
+        event = event || window.event; // IE-ism
+
+        // If pageX/Y aren't available and clientX/Y are,
+        // calculate pageX/Y - logic taken from jQuery.
+        // (This is to support old IE)
+        if (event.pageX == null && event.clientX != null) {
+            eventDoc = (event.target && event.target.ownerDocument) || document;
+            doc = eventDoc.documentElement;
+            body = eventDoc.body;
+
+            event.pageX = event.clientX +
+              (doc && doc.scrollLeft || body && body.scrollLeft || 0) -
+              (doc && doc.clientLeft || body && body.clientLeft || 0);
+            event.pageY = event.clientY +
+              (doc && doc.scrollTop  || body && body.scrollTop  || 0) -
+              (doc && doc.clientTop  || body && body.clientTop  || 0 );
+        }
+
+        // Use event.pageX / event.pageY here
+        mouseX = event.pageX;
+        mouseY = event.pageY;
+    }
+})();
+
+setInterval(draw,10);
+//c\left(-\left(\frac{x}{a}+d\right)^{3}+\left(\frac{x}{a}+d\right)^{2}\right)
+//a = (-3v/x1^2)(x-x1);
+</script>
+
+</body>
+</html>
